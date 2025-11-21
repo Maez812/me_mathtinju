@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PERTANDINGAN TINJU MATEMATIKA (TOUCH EDITION)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --p1: #3498db; --p1-dark: #2980b9;
+            --p2: #e74c3c; --p2-dark: #c0392b;
+            --text: #ecf0f1;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background: #111; color: var(--text);
+            margin: 0; height: 100vh; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            user-select: none;
+        }
+
+        /* --- MENU LAYER --- */
+        #menu-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(0,0,0,0.9), rgba(0,0,0,0.8)), 
+                        url('https://img.freepik.com/premium-vector/pixel-art-boxing-ring-background_805576-88.jpg');
+            background-size: cover; background-position: center;
+            z-index: 100; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+        }
+        h1 { 
+            font-size: 24px; /* Ukuran font responsif */
+            color: #f1c40f; text-shadow: 4px 4px #c0392b; 
+            margin-bottom: 20px; animation: pulse 1.5s infinite;
+            line-height: 1.5;
+            padding: 0 10px;
+        }
+        @media (min-width: 600px) { h1 { font-size: 40px; } }
+
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        
+        .menu-box { background: #222; border: 4px solid #fff; padding: 20px; border-radius: 10px; max-width: 90%; }
+        .btn-group { margin: 15px 0; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            font-family: inherit; padding: 12px 10px; background: #444; color: #fff;
+            border: 2px solid #777; cursor: pointer; transition: 0.2s; font-size: 10px;
+            flex: 1; min-width: 80px; /* Agar tombol enak dipencet di HP */
+        }
+        .btn:active, .btn:hover { background: #666; }
+        .btn.active { background: #27ae60; border-color: #2ecc71; box-shadow: 0 0 10px #27ae60; }
+        .btn-start { font-size: 16px; padding: 15px 40px; background: #e67e22; border-color: #d35400; margin-top: 10px; width: 100%; }
+
+        /* --- GAME LAYER (RESPONSIVE) --- */
+        #game-layer {
+            display: none; 
+            width: 100%; max-width: 900px; /* Max width agar bagus di PC, tapi full di HP */
+            height: 100%; max-height: 800px;
+            position: relative; flex-direction: column;
+            background: #333; border: 2px solid #555;
+        }
+
+        .screen {
+            position: relative; width: 100%; 
+            flex: 1; /* Mengisi sisa ruang */
+            background: #87ceeb; overflow: hidden;
+            border-bottom: 5px solid #000;
+        }
+        /* Elemen Visual Ring */
+        .bg-sky { position: absolute; width: 100%; height: 100%; background: linear-gradient(#2980b9, #fff); }
+        .floor { position: absolute; bottom: 0; width: 100%; height: 25%; background: #7f8c8d; border-top: 8px solid #555; z-index: 2; }
+        .rope { position: absolute; width: 100%; height: 4px; background: #c0392b; border: 1px solid #000; z-index: 5; }
+
+        /* HUD */
+        .hud {
+            position: absolute; top: 0; width: 100%; padding: 10px;
+            display: flex; justify-content: space-between; z-index: 10;
+        }
+        .hp-box { width: 40%; }
+        .hp-bar { width: 100%; height: 15px; background: #333; border: 2px solid #fff; }
+        .hp-fill { height: 100%; width: 100%; transition: width 0.3s; }
+        #hp1 { background: var(--p1); } #hp2 { background: var(--p2); transform-origin: right; }
+        .timer { font-size: 24px; color: #f1c40f; text-shadow: 2px 2px #000; align-self: center;}
+
+        /* Karakter */
+        .char {
+            width: 60px; height: 90px; position: absolute; bottom: 20%; /* Persentase agar responsif */
+            transition: transform 0.1s; z-index: 4;
+        }
+        @media (min-width: 600px) { .char { width: 80px; height: 120px; bottom: 50px; } }
+
+        #p1 { left: 15%; color: var(--p1); }
+        #p2 { right: 15%; color: var(--p2); transform: scaleX(-1); }
+        
+        .head { width: 50%; height: 33%; background: #f1c27d; position: absolute; top: 0; left: 25%; border: 2px solid #000; }
+        .body { width: 60%; height: 50%; background: currentColor; position: absolute; top: 33%; left: 20%; border: 2px solid #000; }
+        .glove { width: 40%; height: 25%; background: currentColor; position: absolute; border: 2px solid #000; filter: brightness(0.8); }
+        .glove.l { top: 40%; left: -10%; } .glove.r { top: 50%; left: 60%; }
+
+        /* Animasi */
+        .idle { animation: bounce 1s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0) scaleX(1); } 50% { transform: translateY(-5px) scaleX(1); } }
+        #p2.idle { animation: bounceP2 1s infinite; }
+        @keyframes bounceP2 { 0%, 100% { transform: translateY(0) scaleX(-1); } 50% { transform: translateY(-5px) scaleX(-1); } }
+        .punch { animation: punchAnim 0.2s forwards; }
+        @keyframes punchAnim { 50% { transform: translateX(50px) scaleX(1); } }
+        #p2.punch { animation: punchAnimP2 0.2s forwards; }
+        @keyframes punchAnimP2 { 50% { transform: translateX(50px) scaleX(-1); } }
+        .hit { animation: shake 0.3s; filter: brightness(2) sepia(1) hue-rotate(-50deg); }
+
+        /* Soal */
+        .question-modal {
+            position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: #fff; padding: 10px 15px;
+            border: 2px solid #fff; border-radius: 10px; text-align: center; z-index: 15;
+            min-width: 200px;
+        }
+        .q-label { font-size: 10px; color: #aaa; display: block; margin-bottom: 5px; }
+        .q-text { font-size: 24px; margin: 0; white-space: nowrap; }
+
+        /* --- INPUT AREA (TOUCH FRIENDLY) --- */
+        .input-area {
+            height: auto; padding: 10px 0; background: #222; display: flex;
+            justify-content: space-around; align-items: flex-start;
+            border-top: 5px solid #555;
+        }
+        .col {
+            display: flex; flex-direction: column; align-items: center;
+            width: 48%; opacity: 0.6; transition: 0.3s;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .col.active { opacity: 1; background: rgba(255,255,255,0.05); border: 1px solid #555; }
+        
+        .col label { font-size: 10px; margin-bottom: 5px; color: #bbb; text-align: center; line-height: 1.4; min-height: 30px;}
+        .key-hint { color: #f1c40f; font-weight: bold; display: inline-block; }
+
+        /* Input Box */
+        .ans-input {
+            width: 100%; height: 45px; font-size: 20px; text-align: center;
+            font-family: inherit; background: #111; border: 2px solid #444; color: #fff;
+            border-radius: 5px; -webkit-appearance: none;
+        }
+        .ans-input:focus { outline: none; border-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; }
+        
+        #in1 { border-color: var(--p1-dark); }
+        #in2 { border-color: var(--p2-dark); }
+
+        /* TOMBOL TOUCH LAYAR */
+        .touch-submit-btn {
+            margin-top: 8px;
+            width: 100%;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 12px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+        }
+        .touch-submit-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.5); }
+        
+        #btn-p1 { background: var(--p1); }
+        #btn-p2 { background: var(--p2); }
+
+        /* Win Overlay */
+        #win-overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 200;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        .win-title { font-size: 40px; color: #f1c40f; animation: pulse 0.5s infinite; text-align: center; }
+        .confetti { position: absolute; width: 10px; height: 10px; background: #f00; animation: fall linear forwards; }
+        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div id="menu-layer">
+        <h1>PERTANDINGAN TINJU<br>MATEMATIKA</h1>
+        <div class="menu-box">
+            <div style="margin-bottom: 10px; color: #aaa; font-size: 10px;">SENTUH UNTUK MEMILIH!</div>
+            <div class="btn-group">
+                <button class="btn active" onclick="setMode('pvp', this)">LAWAN TEMAN</button>
+                <button class="btn" onclick="setMode('pve', this)">LAWAN BOT</button>
+            </div>
+            <div class="btn-group">
+                <button class="btn" onclick="setDiff('easy', this)">MUDAH<br>(x)</button>
+                <button class="btn active" onclick="setDiff('normal', this)">NORMAL<br>(√)</button>
+                <button class="btn" onclick="setDiff('hard', this)">SULIT<br>(Mix)</button>
+            </div>
+            <button class="btn btn-start" onclick="startGame()">MULAI!</button>
+        </div>
+    </div>
+
+    <div id="game-layer">
+        <div class="screen">
+            <div class="bg-sky"></div>
+            <div class="floor"></div>
+            <div class="rope" style="bottom: 25%"></div>
+            <div class="rope" style="bottom: 15%"></div>
+
+            <div class="hud">
+                <div class="hp-box">
+                    <div style="color:var(--p1); font-size:10px; margin-bottom:5px;">P1</div>
+                    <div class="hp-bar"><div class="hp-fill" id="hp1"></div></div>
+                </div>
+                <div class="timer" id="timer">00</div>
+                <div class="hp-box" style="text-align:right;">
+                    <div style="color:var(--p2); font-size:10px; margin-bottom:5px;" id="p2-label">P2</div>
+                    <div class="hp-bar"><div class="hp-fill" id="hp2"></div></div>
+                </div>
+            </div>
+
+            <div class="question-modal">
+                <span class="q-label" id="q-topic">TOPIC</span>
+                <h2 class="q-text" id="q-text">SIAP?</h2>
+            </div>
+
+            <div class="char idle" id="p1">
+                <div class="head"></div><div class="body"></div>
+                <div class="glove l"></div><div class="glove r"></div>
+            </div>
+            <div class="char idle" id="p2">
+                <div class="head"></div><div class="body"></div>
+                <div class="glove l"></div><div class="glove r"></div>
+            </div>
+
+            <div id="win-overlay">
+                <div class="win-title" id="win-msg">TUMBANG!</div>
+                <button class="btn btn-start" onclick="location.reload()">MAIN LAGI</button>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="col" id="col1" onclick="focusInput('p1')">
+                <label>P1: Ketuk Kotak<br>Isi Jawaban</label>
+                <input type="tel" id="in1" class="ans-input" placeholder="?">
+                <button class="touch-submit-btn" id="btn-p1" onclick="submitTouch('p1')">P1 PUKUL!</button>
+            </div>
+
+            <div class="col" id="col2" onclick="focusInput('p2')">
+                <label id="lbl2">P2: Ketuk Kotak<br>Isi Jawaban</label>
+                <input type="tel" id="in2" class="ans-input" placeholder="?">
+                <button class="touch-submit-btn" id="btn-p2" onclick="submitTouch('p2')">P2 PUKUL!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        let bgmInterval;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playBGM() {
+            if (bgmInterval) clearInterval(bgmInterval);
+            let note = 0;
+            bgmInterval = setInterval(() => {
+                if(!state.active) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                const freqs = [110, 103, 98, 103]; 
+                osc.frequency.setValueAtTime(freqs[note % 4], audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+                note++;
+            }, 250);
+        }
+
+        function sfxPunch() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function sfxWin() {
+            clearInterval(bgmInterval);
+            const now = audioCtx.currentTime;
+            [440, 554, 659, 880].forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.2, now + i*0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + i*0.1 + 0.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + i*0.1);
+                osc.stop(now + i*0.1 + 0.5);
+            });
+        }
+
+        const config = { mode: 'pvp', diff: 'normal', time: 15, type: 'root' };
+        const diffs = {
+            easy: { t: 6, type: 'mult', txt: 'PERKALIAN' },
+            normal: { t: 15, type: 'root', txt: 'AKAR' },
+            hard: { t: 60, type: 'arith', txt: 'ARITMATIKA' }
+        };
+
+        let state = { hp1: 100, hp2: 100, active: false, ans: 0, timer: 0, interval: null, botTimer: null };
+
+        const elMenu = document.getElementById('menu-layer');
+        const elGame = document.getElementById('game-layer');
+        const elQ = document.getElementById('q-text');
+        const elTimer = document.getElementById('timer');
+        const in1 = document.getElementById('in1');
+        const in2 = document.getElementById('in2');
+        const char1 = document.getElementById('p1');
+        const char2 = document.getElementById('p2');
+
+        function setMode(m, btn) {
+            config.mode = m;
+            document.querySelectorAll('.btn-group:first-of-type .btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function setDiff(d, btn) {
+            config.diff = d;
+            document.querySelectorAll('.btn-group:last-of-type .btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        function startGame() {
+            initAudio();
+            playBGM();
+            elMenu.style.display = 'none';
+            elGame.style.display = 'flex';
+
+            const set = diffs[config.diff];
+            config.time = set.t;
+            config.type = set.type;
+            document.getElementById('q-topic').textContent = set.txt;
+
+            if(config.mode === 'pve') {
+                document.getElementById('p2-label').textContent = "BOT";
+                document.getElementById('lbl2').innerHTML = "BOT SEDANG<br>BERPIKIR...";
+                in2.disabled = true;
+                in2.placeholder = "...";
+                document.getElementById('btn-p2').style.display = 'none'; // Hide P2 button vs Bot
+            } else {
+                document.getElementById('p2-label').textContent = "P2";
+                document.getElementById('lbl2').innerHTML = "P2: Ketuk Kotak<br>Isi Jawaban";
+                in2.disabled = false;
+                in2.placeholder = "?";
+                document.getElementById('btn-p2').style.display = 'block';
+            }
+            nextRound();
+        }
+
+        function nextRound() {
+            if(state.hp1 <= 0 || state.hp2 <= 0) return;
+            
+            state.active = true;
+            let q = "", a = 0;
+            if(config.type === 'mult') {
+                const n1 = Math.floor(Math.random()*9)+2;
+                const n2 = Math.floor(Math.random()*9)+2;
+                a = n1*n2; q = `${n1} x ${n2}`;
+            } else if(config.type === 'root') {
+                const n = Math.floor(Math.random()*19)+2;
+                a = n; q = `√${n*n}`;
+            } else {
+                const n1=Math.floor(Math.random()*10)+5;
+                const n2=Math.floor(Math.random()*5)+2;
+                const n3=Math.floor(Math.random()*20)+1;
+                a = n1*n2+n3; q = `${n1}x${n2} + ${n3}`;
+            }
+            
+            elQ.textContent = `${q} = ?`;
+            state.ans = a;
+
+            in1.value = ''; in2.value = '';
+            
+            // Hapus style active
+            document.getElementById('col1').classList.remove('active');
+            document.getElementById('col2').classList.remove('active');
+
+            clearInterval(state.interval);
+            clearTimeout(state.botTimer);
+            state.timer = config.time;
+            elTimer.textContent = state.timer;
+            
+            state.interval = setInterval(() => {
+                state.timer--;
+                elTimer.textContent = state.timer;
+                if(state.timer <= 0) {
+                    state.active = false;
+                    elQ.textContent = "WAKTU HABIS!";
+                    clearInterval(state.interval);
+                    setTimeout(nextRound, 1500);
+                }
+            }, 1000);
+
+            if(config.mode === 'pve') {
+                let delay = (config.diff === 'easy' ? 3000 : (config.diff === 'normal' ? 5000 : 8000));
+                delay = Math.random() * delay + 2000;
+                if(delay > (config.time*1000)) delay = (config.time*1000) - 500;
+                state.botTimer = setTimeout(() => {
+                    if(!state.active) return;
+                    in2.value = state.ans;
+                    checkAns('p2', state.ans);
+                }, delay);
+            }
+        }
+
+        // --- FUNGSI LAYAR SENTUH / LOGIKA INPUT ---
+
+        // 1. Saat area input diklik/disentuh, fokuskan kursor
+        function focusInput(player) {
+            if(!state.active) return;
+            if(player === 'p1') {
+                in1.focus(); // Memancing keyboard HP muncul
+                document.getElementById('col1').classList.add('active');
+                if(config.mode === 'pvp') document.getElementById('col2').classList.remove('active');
+            } else if (player === 'p2' && config.mode === 'pvp') {
+                in2.focus(); // Memancing keyboard HP muncul
+                document.getElementById('col2').classList.add('active');
+                document.getElementById('col1').classList.remove('active');
+            }
+        }
+
+        // 2. Fungsi Submit lewat Tombol di Layar (untuk HP)
+        function submitTouch(player) {
+            if(!state.active) return;
+            if(player === 'p1') checkAns('p1', parseInt(in1.value));
+            if(player === 'p2') checkAns('p2', parseInt(in2.value));
+        }
+
+        // 3. Event Listener Keyboard (Untuk PC / Keyboard Fisik)
+        document.addEventListener('keydown', (e) => {
+            if(!state.active) return;
+            // P1 (Q untuk fokus, Enter untuk kirim)
+            if(e.key.toLowerCase() === 'q') { e.preventDefault(); focusInput('p1'); }
+            if(e.key === 'Enter' && document.activeElement === in1) checkAns('p1', parseInt(in1.value));
+
+            // P2 (P untuk fokus, Space untuk kirim)
+            if(config.mode === 'pvp') {
+                if(e.key.toLowerCase() === 'p') { e.preventDefault(); focusInput('p2'); }
+                if(e.code === 'Space' && document.activeElement === in2) { e.preventDefault(); checkAns('p2', parseInt(in2.value)); }
+            }
+        });
+
+        function checkAns(p, val) {
+            if(!state.active) return;
+
+            if(val === state.ans) {
+                state.active = false;
+                clearInterval(state.interval);
+                clearTimeout(state.botTimer);
+                attack(p);
+            } else {
+                // Jika salah, kosongkan & beri efek visual
+                if(p==='p1') { 
+                    in1.value=''; in1.placeholder='SALAH'; 
+                    in1.classList.add('shake'); // Bisa tambah CSS shake jika mau
+                    setTimeout(()=>in1.placeholder='?',500); 
+                } else { 
+                    in2.value=''; in2.placeholder='SALAH'; 
+                    setTimeout(()=>in2.placeholder='?',500); 
+                }
+            }
+        }
+
+        function attack(attacker) {
+            sfxPunch();
+            const isP1 = attacker === 'p1';
+            const atk = isP1 ? char1 : char2;
+            const vic = isP1 ? char2 : char1;
+
+            atk.classList.remove('idle');
+            atk.classList.add('punch');
+
+            setTimeout(() => {
+                vic.classList.add('hit');
+                if(isP1) state.hp2 -= 20; else state.hp1 -= 20;
+                updateHP();
+            }, 100);
+
+            setTimeout(() => {
+                atk.classList.remove('punch');
+                atk.classList.add('idle');
+                vic.classList.remove('hit');
+                if(state.hp1 <= 0 || state.hp2 <= 0) winGame(isP1 ? 'P1' : (config.mode === 'pve' ? 'BOT' : 'P2'));
+                else nextRound();
+            }, 800);
+        }
+
+        function updateHP() {
+            document.getElementById('hp1').style.width = Math.max(0, state.hp1)+'%';
+            document.getElementById('hp2').style.width = Math.max(0, state.hp2)+'%';
+        }
+
+        function winGame(winner) {
+            state.active = false;
+            sfxWin();
+            const ov = document.getElementById('win-overlay');
+            const title = document.getElementById('win-msg');
+            title.innerHTML = `${winner}<br>MENANG!`;
+            ov.style.display = 'flex';
+
+            for(let i=0; i<50; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.style.left = Math.random()*100 + '%';
+                c.style.background = `hsl(${Math.random()*360}, 100%, 50%)`;
+                c.style.animationDuration = (Math.random()*2 + 1) + 's';
+                ov.appendChild(c);
+            }
+        }
+    </script>
+</body>
+</html>
